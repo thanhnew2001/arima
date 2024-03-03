@@ -40,11 +40,11 @@ model_fit = model.fit()
 # Manually forecast each step in the test set
 forecast = []
 for time_point in range(len(test)):
-    endog = train['Close'].append(test['Close'].iloc[:time_point])  # Extend training data to current point in test set
+    endog = pd.concat([train['Close'], test['Close'].iloc[:time_point]])  # Use concat instead of append
     model = ARIMA(endog, order=(5, 1, 2))
     model_fit = model.fit()
     next_forecast = model_fit.forecast()[0]  # Forecast the next step
-    forecast.append(next_forecast[0])  # Append forecasted value
+    forecast.append(next_forecast)  # Append forecasted value
 
 # Convert forecast to an array for comparison
 forecast = np.array(forecast)
