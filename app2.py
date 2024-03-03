@@ -2,58 +2,62 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from statsmodels.tsa.stattools import adfuller
-from statsmodels.tsa.arima.model import ARIMA  # Updated import path for ARIMA
+from statsmodels.tsa.arima.model import ARIMA
 from sklearn.metrics import mean_squared_error
-
-# Generate sample weekly stock prices data
-np.random.seed(42)  # For reproducibility
-data = np.random.normal(0, 1, 300).cumsum() + 100  # Random walk model
-
-# Convert to pandas DataFrame
-dates = pd.date_range(start='2019-01-01', periods=300, freq='W')
-stock_prices = pd.DataFrame(data, index=dates, columns=['Close'])
-
-# Split data into train and eval
-train_size = int(len(stock_prices) * 0.8)
-train, test = stock_prices[0:train_size], stock_prices[train_size:len(stock_prices)]
 
 # Function to perform Augmented Dickey-Fuller test
 def adf_test(series):
     result = adfuller(series, autolag='AIC')
-    print('ADF Statistic:', result[0])
-    print('p-value:', result[1])
-    print('Critical Values:')
-    for key, value in result[4].items():
-        print(f'   {key}: {value}')
-    return result[1]  # Return the p-value
+    p_value = result[1]  # Extract the p-value
+    return p_value < 0.05  # Return True if series is stationary
 
-# Apply ADF test on the training series
-p_value = adf_test(train['Close'])
+# Initialize variables for the while loop
+stationary = False
+max_iterations = 1000  # Prevent infinite loop, adjust as necessary
+iterations = 0
 
-# Determine if series is stationary and print the result
-if p_value < 0.05:
-    print('Series is stationary.')
+# Keep generating data until it is stationary or we hit the max number of iterations
+while not stationary and iterations < max_iterations:
+    iterations += 1
+    # Generate sample weekly stock prices data
+    data = np.random.normal(0, 1, 300).cumsum() + 100  # Random walk model
+    # Convert to pandas DataFrame
+    dates = pd.date_range(start='2019-01-01', periods=300, freq='W')
+    stock_prices = pd.DataFrame(data, index=dates, columns=['Close'])
+    # Check if generated series is stationary
+    stationary = adf_test(stock_prices['Close'])
+
+if stationary:
+    print(f'Series became stationary after {iterations} iterations')
 else:
-    print('Series is not stationary, differencing might be needed.')
+    print('Failed to generate a stationary series within the maximum number of iterations')
+    # Exit if no stationary series was generated
+    exit()
 
-# Fit an ARIMA model to the training set
-model = ARIMA(train['Close'], order=(1,1,1))  # Adjust the order based on your data
+# Split data into train and evaluation sets
+train_size = int(len(stock_prices) * 0.8)
+train, test = stock_prices[0:train_size], stock_prices[train_size:len(stock_prices)]
+
+# Fit an ARIMA model to the training set (adjust the order based on your data)
+model = ARIMA(train['Close'], order=(5,1,2))  # Using a general model, might need optimization
 model_fit = model.fit()
 
-# Forecast the next week's price and extend for the test period
-forecast_steps = len(test)
-forecast, stderr, conf_int = model_fit.forecast(steps=forecast_steps)
+# Forecast the next week's price
+forecast = model_fit.forecast(steps=1)[0]
 
-# Create a pandas series with the forecasted values
-forecast_series = pd.Series(forecast, index=test.index)
+# Determine the trend
+last_known_value = train['Close'].iloc[-1]
+predicted_trend = 'up' if forecast[0] > last_known_value else 'down'
+print(f"Next week's predicted trend: {predicted_trend} (predicted price: {forecast[0]})")
 
-# Plot the original data, the training part, and the forecasted part
-plt.figure(figsize=(10, 6))
-plt.plot(train['Close'], label='Training Data')
-plt.plot(test['Close'], label='Actual Price', color='green')
-plt.plot(forecast_series, label='Forecasted Price', color='red')
-plt.title('Stock Price Prediction')
-plt.xlabel('Week')
-plt.ylabel('Price')
-plt.legend()
-plt.show()
+# Evaluate the model by comparing with the actual values in the test set
+# Here we use the model to predict the values for the test set and compare
+predictions = model_fit.forecast(steps=len(test))[0]
+actuals = test['Close'].values
+# Convert predictions and actuals to binary up/down
+binary_predictions = ['up' if predictions[i] > actuals[i-1] else 'down' for i in range(1, len(predictions))]
+binary_actuals = ['up' if actuals[i] > actuals[i-1] else 'down' for i in range(1, len(actuals))]
+
+# Calculate accuracy
+accuracy = sum(1 for i in range(len(binary_predictions)) if binary_predictions[i] == binary_actuals[i]) / len(binary_predictions)
+print(f'Model accuracy on test set: {accuracy:.2%}')
