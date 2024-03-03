@@ -5,6 +5,11 @@ from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.metrics import accuracy_score
 import matplotlib.pyplot as plt
 
+# Function to fetch weekly data from Yahoo Finance
+def fetch_weekly_data(ticker):
+    data = yf.download(ticker, start='2015-01-01', end=pd.to_datetime('today'), interval='1wk')
+    return data['Close']
+    
 # Function to prepare data, train and predict trends
 def prepare_predict_visualize(ticker):
     # Fetch data from Yahoo Finance
