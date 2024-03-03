@@ -10,7 +10,7 @@ def adf_test(series):
     p_value = result[1]  # Extract the p-value
     return p_value < 0.05  # Return True if series is stationary
 
-# Initialize variables for the while loop
+# Initialize variables for while loop
 stationary = False
 max_iterations = 1000
 iterations = 0
@@ -38,23 +38,28 @@ model = ARIMA(train['Close'], order=(5, 1, 2))  # Adjust these parameters as nec
 model_fit = model.fit()
 
 # Forecast
-forecast_steps = len(test)
+forecast_steps = len(test)  # Set forecast steps to length of test set
 forecast_result = model_fit.forecast(steps=forecast_steps)
-forecast = forecast_result[0]  # Forecast should already be an array here; no need for np.array()
+forecast = forecast_result[0]  # Extract forecast values
 
-# Validate forecast size
-if not isinstance(forecast, np.ndarray):
-    forecast = np.array([forecast])  # Make sure forecast is always an array for consistency
+# Ensure forecast array matches the length of test set for plotting
+if len(forecast) != len(test):
+    print(f"Warning: Forecast length {len(forecast)} does not match test set length {len(test)}. Adjusting forecast length for plotting.")
+    forecast = np.resize(forecast, len(test))  # Resize forecast to match test data length if needed
 
-# Generate binary predictions
+# Generate binary predictions based on forecast and actuals
 last_train_value = train['Close'].iloc[-1]
-binary_predictions = ['up' if forecast[i] > (last_train_value if i == 0 else forecast[i-1]) else 'down' for i in range(len(forecast))]
+binary_predictions = ['up' if i == 0 and forecast[i] > last_train_value else 
+                      'up' if i > 0 and forecast[i] > forecast[i-1] else 
+                      'down' for i in range(len(forecast))]
 
 # Actual binary outcomes
 actuals = test['Close'].values
-binary_actuals = ['up' if actuals[i] > (last_train_value if i == 0 else actuals[i-1]) else 'down' for i in range(len(actuals))]
+binary_actuals = ['up' if i == 0 and actuals[i] > last_train_value else 
+                  'up' if i > 0 and actuals[i] > actuals[i-1] else 
+                  'down' for i in range(len(actuals))]
 
-# Calculate accuracy
+# Calculate accuracy of predictions
 accuracy = sum(1 for i in range(len(binary_predictions)) if binary_predictions[i] == binary_actuals[i]) / len(binary_predictions)
 print(f'Model accuracy on test set: {accuracy:.2%}')
 
@@ -62,7 +67,7 @@ print(f'Model accuracy on test set: {accuracy:.2%}')
 plt.figure(figsize=(10, 6))
 plt.plot(train.index, train['Close'], label='Training Data')
 plt.plot(test.index, test['Close'], label='Actual Price', color='green')
-plt.plot(test.index, forecast, label='Forecasted Price', color='red')  # Ensure forecast is used directly
+plt.plot(test.index, forecast, label='Forecasted Price', color='red')  # Plotting with correct dimensions
 plt.title('Stock Price Prediction')
 plt.xlabel('Date')
 plt.ylabel('Price')
