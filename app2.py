@@ -33,10 +33,6 @@ else:
 train_size = int(len(stock_prices) * 0.8)
 train, test = stock_prices[:train_size], stock_prices[train_size:]
 
-# Fit ARIMA model
-model = ARIMA(train['Close'], order=(5, 1, 2))  # Adjust these parameters as necessary
-model_fit = model.fit()
-
 # Manually forecast each step in the test set
 forecast = []
 for time_point in range(len(test)):
@@ -59,5 +55,3 @@ plt.xlabel('Date')
 plt.ylabel('Price')
 plt.legend()
 plt.show()
-
-# Note: Binary prediction and accuracy calculation are omitted for brevity but can be added similarly as before.
