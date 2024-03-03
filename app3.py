@@ -33,25 +33,24 @@ else:
 train_size = int(len(stock_prices) * 0.8)
 train, test = stock_prices[:train_size], stock_prices[train_size:]
 
-# Predicting increase or decrease
-binary_predictions = []
-last_value = train['Close'].iloc[-1]  # Last value of the training set for the first comparison
+# Initialize lists to hold binary outcomes
+binary_outcomes = []
 
+# Manually forecast each step in the test set
 for time_point in range(len(test)):
-    endog = pd.concat([train['Close'], test['Close'].iloc[:time_point]])  # Concatenate data for ARIMA input
+    endog = pd.concat([train['Close'], test['Close'].iloc[:time_point]])  # Use concat instead of append
     model = ARIMA(endog, order=(5, 1, 2))
     model_fit = model.fit()
-    forecast = model_fit.forecast()[0][0]  # Forecast the next step
-    trend = 'increase' if forecast > last_value else 'decrease'
-    binary_predictions.append(trend)
-    last_value = forecast  # Update last_value for the next prediction
+    next_forecast = model_fit.forecast()[0]  # Forecast the next step
+    # Determine if the forecast is an increase or decrease
+    if time_point == 0:  # If it's the first forecast, compare with last train value
+        outcome = 'increase' if next_forecast > train['Close'].iloc[-1] else 'decrease'
+    else:  # Otherwise, compare with the previous forecast
+        outcome = 'increase' if next_forecast > endog.iloc[-1] else 'decrease'
+    binary_outcomes.append(outcome)  # Append binary outcome
 
-# Actual binary outcomes
-actuals = test['Close'].values
-binary_actuals = ['increase' if actuals[i] > train['Close'].iloc[-1] if i == 0 else actuals[i-1] else 'decrease' for i in range(len(actuals))]
-
-# Calculate accuracy of predictions
-accuracy = sum(1 for i in range(len(binary_predictions)) if binary_predictions[i] == binary_actuals[i]) / len(binary_predictions)
-print(f'Model accuracy on test set (increase or decrease): {accuracy:.2%}')
-
-# Note: No plotting required if you're only interested in the prediction accuracy.
+# Calculate and print the accuracy if you have actual future data to compare with
+actual_changes = ['increase' if test['Close'].iloc[i] > test['Close'].iloc[i - 1] else 'decrease' for i in range(1, len(test))]
+predicted_changes = binary_outcomes[1:]  # Exclude the first forecast since there's no previous actual value to compare
+accuracy = sum(1 for i in range(len(actual_changes)) if actual_changes[i] == predicted_changes[i]) / len(actual_changes)
+print(f'Binary prediction accuracy on test set: {accuracy:.2%}')
