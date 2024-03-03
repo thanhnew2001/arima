@@ -43,12 +43,19 @@ model = ARIMA(train['Close'], order=(5,1,2))  # Using a general model, might nee
 model_fit = model.fit()
 
 # Forecast the next week's price
-forecast = model_fit.forecast(steps=1)[0]
+forecast_result = model_fit.forecast(steps=1)
+forecast = forecast_result[0]
 
-# Determine the trend
+# Ensure forecast is an array and retrieve the first element safely
+predicted_value = forecast[0] if len(forecast) > 0 else None
 last_known_value = train['Close'].iloc[-1]
-predicted_trend = 'up' if forecast[0] > last_known_value else 'down'
-print(f"Next week's predicted trend: {predicted_trend} (predicted price: {forecast[0]})")
+
+# Check if predicted_value is not None to avoid further errors
+if predicted_value is not None:
+    predicted_trend = 'up' if predicted_value > last_known_value else 'down'
+    print(f"Next week's predicted trend: {predicted_trend} (predicted price: {predicted_value})")
+else:
+    print("Error in forecasting.")
 
 # Evaluate the model by comparing with the actual values in the test set
 # Here we use the model to predict the values for the test set and compare
