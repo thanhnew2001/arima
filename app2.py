@@ -40,15 +40,16 @@ model_fit = model.fit()
 # Forecast
 forecast_steps = len(test)
 forecast_result = model_fit.forecast(steps=forecast_steps)
-forecast = np.array(forecast_result[0])  # Ensure forecast is an array
+forecast = forecast_result[0]  # Forecasted values
 
 # Generate binary predictions
-last_train_value = train['Close'].iloc[-1]
-binary_predictions = ['up' if forecast[i] > (last_train_value if i == 0 else forecast[i-1]) else 'down' for i in range(forecast.shape[0])]
+binary_predictions = ['up' if i == 0 and forecast[i] > train['Close'].iloc[-1] else 
+                      'up' if i > 0 and forecast[i] > forecast[i-1] else 'down' for i in range(len(forecast))]
 
 # Actual binary outcomes
 actuals = test['Close'].values
-binary_actuals = ['up' if actuals[i] > (last_train_value if i == 0 else actuals[i-1]) else 'down' for i in range(len(actuals))]
+binary_actuals = ['up' if i == 0 and actuals[i] > train['Close'].iloc[-1] else 
+                  'up' if i > 0 and actuals[i] > actuals[i-1] else 'down' for i in range(len(actuals))]
 
 # Calculate accuracy
 accuracy = sum(1 for i in range(len(binary_predictions)) if binary_predictions[i] == binary_actuals[i]) / len(binary_predictions)
@@ -58,7 +59,7 @@ print(f'Model accuracy on test set: {accuracy:.2%}')
 plt.figure(figsize=(10, 6))
 plt.plot(train.index, train['Close'], label='Training Data')
 plt.plot(test.index, test['Close'], label='Actual Price', color='green')
-plt.plot(test.index[:forecast.shape[0]], forecast, label='Forecasted Price', color='red')  # Ensure plot uses forecast length
+plt.plot(test.index, forecast, label='Forecasted Price', color='red')
 plt.title('Stock Price Prediction')
 plt.xlabel('Date')
 plt.ylabel('Price')
