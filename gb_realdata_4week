@@ -1,0 +1,60 @@
+import yfinance as yf
+import pandas as pd
+from sklearn.ensemble import GradientBoostingClassifier
+from datetime import datetime
+import numpy as np
+
+# Define tickers and prediction horizon
+tickers = ['SPY', 'QQQ', 'IWM']
+prediction_horizon = 4  # Weeks
+
+# Function to fetch the latest weekly data
+def fetch_latest_data(ticker):
+    end_date = datetime.now()
+    start_date = end_date - pd.Timedelta(weeks=260)  # Approx 5 years of historical data
+    data = yf.download(ticker, start=start_date.strftime('%Y-%m-%d'), end=end_date.strftime('%Y-%m-%d'), interval='1wk')
+    return data['Close']
+
+# Function to predict trends for the next weeks
+def predict_future_trends(data):
+    # Prepare features from the last year of data
+    features = np.column_stack([
+        data['Previous Close'].values[-52:], 
+        data['Price Change'].values[-52:]
+    ])
+    
+    # Initialize and fit the model
+    gbc = GradientBoostingClassifier(random_state=42)
+    gbc.fit(features, data['Trend'].values[-52:])
+    
+    # Predict the trend for the next weeks
+    last_known_close = features[-1, 0]
+    future_trends = []
+    for _ in range(prediction_horizon):
+        # Speculatively assume price change is zero for future predictions
+        prediction = gbc.predict([[last_known_close, 0]])
+        future_trends.append('Up' if prediction == 1 else 'Down')
+        # Speculatively update the last_known_close (this is just for demonstration)
+        last_known_close += 0  # In real case, you'd use actual new data
+    return future_trends
+
+# Main routine
+def main():
+    results = pd.DataFrame(index=['Week 1', 'Week 2', 'Week 3', 'Week 4'])
+    
+    for ticker in tickers:
+        data = fetch_latest_data(ticker)
+        data_df = pd.DataFrame(data)
+        data_df['Previous Close'] = data_df['Close'].shift(1)
+        data_df['Price Change'] = data_df['Close'] - data_df['Previous Close']
+        data_df['Trend'] = (data_df['Price Change'] > 0).astype(int)
+        data_df.dropna(inplace=True)  # Remove rows with NaN values
+        
+        # Predict trends for the next weeks
+        predictions = predict_future_trends(data_df)
+        results[ticker] = predictions
+    
+    print(results)
+
+if __name__ == "__main__":
+    main()
